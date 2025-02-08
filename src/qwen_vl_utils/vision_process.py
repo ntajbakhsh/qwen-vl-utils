@@ -10,7 +10,8 @@ import torch
 from PIL import Image
 from torchvision import io, transforms
 from torchvision.transforms import InterpolationMode
-
+from io import BytesIO
+import torchaudio
 
 IMAGE_FACTOR = 28
 MIN_PIXELS = 4 * 28 * 28
@@ -69,6 +70,14 @@ def smart_resize(
         w_bar = ceil_by_factor(width * beta, factor)
     return h_bar, w_bar
 
+def fetch_audio(ele: dict) -> torch.Tensor:
+    if "audio" in ele:
+        audio = ele["audio"]
+    else:
+        audio = ele["audio_url"]
+    # TODO: support http url
+    wav_tensor, sampleing_rate = torchaudio.load(BytesIO(audio))
+    return wav_tensor.numpy(), sampleing_rate
 
 def fetch_image(ele: dict[str, str | Image.Image], size_factor: int = IMAGE_FACTOR) -> Image.Image:
     if "image" in ele:
@@ -203,6 +212,7 @@ def fetch_video(ele: dict, size_factor: int = FRAME_FACTOR) -> torch.Tensor | li
 
 def extract_vision_info(conversations: list[dict] | list[list[dict]]) -> list[dict]:
     vision_infos = []
+    audio_infos = []
     if isinstance(conversations[0], dict):
         conversations = [conversations]
     for conversation in conversations:
@@ -216,18 +226,19 @@ def extract_vision_info(conversations: list[dict] | list[list[dict]]) -> list[di
                         or ele["type"] in ("image", "image_url", "video")
                     ):
                         vision_infos.append(ele)
-    return vision_infos
+                    elif ele["type"] in ("audio", "audio_url"):
+                        audio_infos.append(ele)
+    return vision_infos, audio_infos
 
-def hello():
-    print("hello world")
 
 def process_vision_info(
     conversations: list[dict] | list[list[dict]],
 ) -> tuple[list[Image.Image] | None, list[torch.Tensor | list[Image.Image]] | None]:
-    vision_infos = extract_vision_info(conversations)
+    vision_infos, audio_infos = extract_vision_info(conversations)
     ## Read images or videos
     image_inputs = []
     video_inputs = []
+    audio_inputs = []
     for vision_info in vision_infos:
         if "image" in vision_info or "image_url" in vision_info:
             image_inputs.append(fetch_image(vision_info))
@@ -235,8 +246,14 @@ def process_vision_info(
             video_inputs.append(fetch_video(vision_info))
         else:
             raise ValueError("image, image_url or video should in content.")
+    for audio_info in audio_infos:
+        if "audio" in audio_info or "audio_url" in audio_info:
+            audio_inputs.append(fetch_audio(audio_info))
+
     if len(image_inputs) == 0:
         image_inputs = None
     if len(video_inputs) == 0:
         video_inputs = None
-    return image_inputs, video_inputs
+    if len(audio_inputs) == 0:
+        audio_inputs = None
+    return image_inputs, video_inputs, audio_inputs
