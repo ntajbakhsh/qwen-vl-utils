@@ -218,6 +218,8 @@ def extract_vision_info(conversations: list[dict] | list[list[dict]]) -> list[di
                         vision_infos.append(ele)
     return vision_infos
 
+def hello():
+    print("hello world")
 
 def process_vision_info(
     conversations: list[dict] | list[list[dict]],
