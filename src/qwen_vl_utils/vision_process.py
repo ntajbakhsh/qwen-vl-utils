@@ -77,7 +77,7 @@ def fetch_audio(ele: dict) -> torch.Tensor:
         audio = ele["audio_url"]
     # TODO: support http url
     wav_tensor, sampleing_rate = torchaudio.load(BytesIO(audio))
-    return wav_tensor.numpy(), sampleing_rate
+    return wav_tensor.numpy()
 
 def fetch_image(ele: dict[str, str | Image.Image], size_factor: int = IMAGE_FACTOR) -> Image.Image:
     if "image" in ele:
